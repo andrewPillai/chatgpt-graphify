@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chatgpt-graphify"
+version = "0.1.0"
+description = "ChatGPT-compatible knowledge graph builder - turn any folder of code, docs, papers, images into a queryable knowledge graph"
+readme = "README.md"
+license = { text = "MIT" }
+keywords = ["openai", "chatgpt", "knowledge-graph", "rag", "graphrag", "obsidian", "community-detection", "tree-sitter", "leiden"]
+requires-python = ">=3.9"
+dependencies = [
+    "networkx",
+    "graspologic",
+    "tree-sitter",
+    "tree-sitter-python",
+    "tree-sitter-javascript",
+    "tree-sitter-typescript",
+    "tree-sitter-go",
+    "tree-sitter-rust",
+    "tree-sitter-java",
+    "tree-sitter-c",
+    "tree-sitter-cpp",
+    "tree-sitter-ruby",
+    "tree-sitter-c-sharp",
+    "tree-sitter-kotlin",
+    "tree-sitter-scala",
+    "tree-sitter-php",
+    "openai>=1.0.0",
+    "pydantic>=2.0",
+    "tenacity",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+mcp = ["mcp"]
+neo4j = ["neo4j"]
+pdf = ["pypdf", "html2text"]
+watch = ["watchdog"]
+all = ["mcp", "neo4j", "pypdf", "html2text", "watchdog"]
+
+[project.scripts]
+chatgpt-graphify = "chatgpt_graphify.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["chatgpt_graphify*"]
+
+[tool.setuptools.package-data]
+chatgpt_graphify = ["extraction_schema.json"]
