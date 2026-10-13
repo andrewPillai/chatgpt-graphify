@@ -1,0 +1,2 @@
+#!/bin/bash
+exec "$HOME/Library/Application Support/ChatGPT Graphify/venv/bin/python" -m chatgpt_graphify.desktop

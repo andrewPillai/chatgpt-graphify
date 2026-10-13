@@ -23,6 +23,17 @@ graphify-out/
 
 **Requires:** Python 3.9+
 
+### Easy installer
+
+For a no-command setup, download the repository and double-click the installer for your operating system:
+
+- Windows: `ChatGPTGraphifyInstaller.exe` (built by the Windows installer workflow)
+- macOS: `installers/install-macos.command`
+
+The installer creates a desktop/app launcher with a folder picker. On Windows, the `.exe` installer downloads and installs Python automatically when needed. Users can choose a folder, optionally provide an OpenAI API key for document/PDF/image analysis, and start Graphify without typing commands.
+
+You can also launch the graphical interface directly after installation with `chatgpt-graphify-gui`.
+
 ```bash
 # From local path
 pip install /path/to/chatgpt-graphify

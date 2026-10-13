@@ -1,0 +1,36 @@
+name: Build Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - updates
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Publish installer
+        run: >-
+          dotnet publish installers/windows/GraphifyInstaller.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          --output artifacts/windows
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChatGPT-Graphify-Windows
+          path: artifacts/windows/ChatGPTGraphifyInstaller.exe
