@@ -52,8 +52,15 @@ class GraphifyApp:
         controls.grid(row=3, column=0, columnspan=3, sticky="w", pady=8)
         self.run_button = ttk.Button(controls, text="Analyze folder", command=self._run)
         self.run_button.pack(side=tk.LEFT)
+        self.open_map_button = ttk.Button(
+            controls,
+            text="Open data map",
+            command=self._open_map,
+            state=tk.DISABLED,
+        )
+        self.open_map_button.pack(side=tk.LEFT, padx=8)
         self.open_button = ttk.Button(controls, text="Open output folder", command=self._open_output, state=tk.DISABLED)
-        self.open_button.pack(side=tk.LEFT, padx=8)
+        self.open_button.pack(side=tk.LEFT)
         ttk.Label(frame, textvariable=self.status).grid(row=4, column=0, columnspan=3, sticky="w", pady=5)
 
         self.output = tk.Text(frame, wrap=tk.WORD, state=tk.DISABLED)
@@ -92,6 +99,7 @@ class GraphifyApp:
             environment["OPENAI_API_KEY"] = self.api_key.get().strip()
 
         self.run_button.configure(state=tk.DISABLED)
+        self.open_map_button.configure(state=tk.DISABLED)
         self.open_button.configure(state=tk.DISABLED)
         self.status.set("Analyzing…")
         self._write("$ " + " ".join(command) + "\n\n")
@@ -121,8 +129,18 @@ class GraphifyApp:
                 if line.startswith("__DONE__:"):
                     code = line.rstrip().split(":", 1)[1]
                     self.run_button.configure(state=tk.NORMAL)
+                    map_path = Path(self.folder.get()).expanduser() / "graphify-out" / "graph.html"
+                    self.open_map_button.configure(
+                        state=tk.NORMAL if code == "0" and map_path.is_file() else tk.DISABLED
+                    )
                     self.open_button.configure(state=tk.NORMAL if code == "0" else tk.DISABLED)
-                    self.status.set("Complete. Results are in graphify-out." if code == "0" else "The run failed. See the output above.")
+                    self.status.set(
+                        "Complete. Open the local data map to explore the results."
+                        if code == "0" and map_path.is_file()
+                        else "Complete. Results are in graphify-out."
+                        if code == "0"
+                        else "The run failed. See the output above."
+                    )
                 else:
                     self._write(line)
         except queue.Empty:
@@ -133,12 +151,21 @@ class GraphifyApp:
         output = Path(self.folder.get()).expanduser() / "graphify-out"
         if not output.is_dir():
             return
+        self._open_path(output)
+
+    def _open_map(self) -> None:
+        graph = Path(self.folder.get()).expanduser() / "graphify-out" / "graph.html"
+        if graph.is_file():
+            self._open_path(graph)
+
+    @staticmethod
+    def _open_path(path: Path) -> None:
         if sys.platform == "darwin":
-            subprocess.Popen(["open", str(output)])
+            subprocess.Popen(["open", str(path)])
         elif os.name == "nt":
-            os.startfile(str(output))
+            os.startfile(str(path))
         else:
-            subprocess.Popen(["xdg-open", str(output)])
+            subprocess.Popen(["xdg-open", str(path)])
 
 
 def main() -> None:

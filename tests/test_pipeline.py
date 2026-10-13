@@ -80,7 +80,8 @@ def run_pipeline(tmp_path: Path) -> dict:
     to_html(G, communities, str(html_path), community_labels=labels)
     assert html_path.exists()
     html = html_path.read_text()
-    assert "vis-network" in html
+    assert 'id="graph-svg"' in html
+    assert "https://unpkg.com" not in html
     assert "RAW_NODES" in html
 
     # Step 9: export - Obsidian vault

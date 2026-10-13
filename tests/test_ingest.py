@@ -3,7 +3,17 @@ from __future__ import annotations
 import re
 from pathlib import Path
 import pytest
-from chatgpt_graphify.ingest import save_query_result
+from chatgpt_graphify.ingest import ingest, save_query_result
+
+
+def test_twitter_ingest_is_disabled(tmp_path):
+    with pytest.raises(ValueError, match="twitter|x.com|disabled"):
+        ingest("https://twitter.com/example/status/123", tmp_path)
+
+
+def test_arxiv_ingest_is_disabled(tmp_path):
+    with pytest.raises(ValueError, match="arxiv|disabled"):
+        ingest("https://arxiv.org/abs/1706.03762", tmp_path)
 
 
 def test_file_created(tmp_path):

@@ -1,6 +1,5 @@
 # fetch URLs (tweet/arxiv/pdf/web) and save as annotated markdown
 from __future__ import annotations
-import json
 import re
 import urllib.error
 import urllib.parse
@@ -62,38 +61,8 @@ def _html_to_markdown(html: str, url: str) -> str:
 
 
 def _fetch_tweet(url: str, author: str | None, contributor: str | None) -> tuple[str, str]:
-    """Fetch a tweet URL. Returns (content, filename)."""
-    # Normalize to twitter.com for oEmbed
-    oembed_url = url.replace("x.com", "twitter.com")
-    oembed_api = f"https://publish.twitter.com/oembed?url={urllib.parse.quote(oembed_url)}&omit_script=true"
-    try:
-        req = urllib.request.Request(oembed_api, headers={"User-Agent": "graphify/1.0"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read())
-        tweet_text = re.sub(r"<[^>]+>", "", data.get("html", "")).strip()
-        tweet_author = data.get("author_name", "unknown")
-    except Exception:
-        # oEmbed failed - save URL stub
-        tweet_text = f"Tweet at {url} (could not fetch content)"
-        tweet_author = "unknown"
-
-    now = datetime.now(timezone.utc).isoformat()
-    content = f"""---
-source_url: {url}
-type: tweet
-author: {tweet_author}
-captured_at: {now}
-contributor: {contributor or author or 'unknown'}
----
-
-# Tweet by @{tweet_author}
-
-{tweet_text}
-
-Source: {url}
-"""
-    filename = _safe_filename(url, ".md")
-    return content, filename
+    """Disabled: Twitter/X ingestion is intentionally offline."""
+    raise RuntimeError("Twitter/X ingestion is disabled; save the content locally before ingesting it.")
 
 
 def _fetch_webpage(url: str, author: str | None, contributor: str | None) -> tuple[str, str]:
@@ -126,48 +95,8 @@ Source: {url}
 
 
 def _fetch_arxiv(url: str, author: str | None, contributor: str | None) -> tuple[str, str]:
-    """Fetch arXiv abstract page."""
-    # Convert /abs/ or /pdf/ to abs for the API
-    arxiv_id = re.search(r"(\d{4}\.\d{4,5})", url)
-    if arxiv_id:
-        api_url = f"https://export.arxiv.org/abs/{arxiv_id.group(1)}"
-        try:
-            html = _fetch_html(api_url)
-            abstract_match = re.search(r'class="abstract[^"]*"[^>]*>(.*?)</blockquote>', html, re.DOTALL | re.IGNORECASE)
-            abstract = re.sub(r"<[^>]+>", "", abstract_match.group(1)).strip() if abstract_match else ""
-            title_match = re.search(r'class="title[^"]*"[^>]*>(.*?)</h1>', html, re.DOTALL | re.IGNORECASE)
-            title = re.sub(r"<[^>]+>", " ", title_match.group(1)).strip() if title_match else arxiv_id.group(1)
-            authors_match = re.search(r'class="authors"[^>]*>(.*?)</div>', html, re.DOTALL | re.IGNORECASE)
-            paper_authors = re.sub(r"<[^>]+>", "", authors_match.group(1)).strip() if authors_match else ""
-        except Exception:
-            title, abstract, paper_authors = arxiv_id.group(1), "", ""
-    else:
-        return _fetch_webpage(url, author, contributor)
-
-    now = datetime.now(timezone.utc).isoformat()
-    content = f"""---
-source_url: {url}
-arxiv_id: {arxiv_id.group(1) if arxiv_id else ''}
-type: paper
-title: "{title}"
-paper_authors: "{paper_authors}"
-captured_at: {now}
-contributor: {contributor or author or 'unknown'}
----
-
-# {title}
-
-**Authors:** {paper_authors}
-**arXiv:** {arxiv_id.group(1) if arxiv_id else url}
-
-## Abstract
-
-{abstract}
-
-Source: {url}
-"""
-    filename = f"arxiv_{arxiv_id.group(1).replace('.', '_')}.md" if arxiv_id else _safe_filename(url, ".md")
-    return content, filename
+    """Disabled: arXiv ingestion is intentionally offline."""
+    raise RuntimeError("arXiv ingestion is disabled; download the paper locally before ingesting it.")
 
 
 def _download_binary(url: str, suffix: str, target_dir: Path) -> Path:
@@ -186,6 +115,11 @@ def ingest(url: str, target_dir: Path, author: str | None = None, contributor: s
     """
     target_dir.mkdir(parents=True, exist_ok=True)
     url_type = _detect_url_type(url)
+
+    if url_type in {"tweet", "arxiv"}:
+        raise ValueError(
+            f"ingest: {url_type} ingestion is disabled. Save the content locally before ingesting it."
+        )
 
     try:
         validate_url(url)

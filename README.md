@@ -12,6 +12,7 @@ chatgpt-graphify .                        # works on any folder - your codebase,
 graphify-out/
 ├── graph.json       persistent graph - query weeks later without re-reading
 ├── GRAPH_REPORT.md  god nodes, surprising connections, suggested questions
+├── graph.html       interactive local data map
 ├── obsidian/        open as Obsidian vault
 ├── graph.svg        visual graph (with --svg)
 ├── graph.graphml    for Gephi/yEd (with --graphml)
@@ -27,12 +28,22 @@ graphify-out/
 
 For a no-command setup, download the repository and double-click the installer for your operating system:
 
-- Windows: `ChatGPTGraphifyInstaller.exe` (built by the Windows installer workflow)
+- Windows: download the latest `ChatGPTGraphifyInstaller.exe` from the [Windows installer workflow artifacts](https://github.com/andrewPillai/chatgpt-graphify/actions/workflows/build-windows-installer.yml)
 - macOS: `installers/install-macos.command`
 
 The installer creates a desktop/app launcher with a folder picker. On Windows, the `.exe` installer downloads and installs Python automatically when needed. Users can choose a folder, optionally provide an OpenAI API key for document/PDF/image analysis, and start Graphify without typing commands.
 
 You can also launch the graphical interface directly after installation with `chatgpt-graphify-gui`.
+
+### Local data map
+
+After analysis, open `graphify-out/graph.html` to explore how files, functions, concepts, and relationships are arranged. The desktop app exposes this as **Open data map** after a successful run. Select a node to inspect its source and neighbors, search for a concept, or filter communities from the legend.
+
+![Local data map preview](assets/graphify-data-map-preview.png)
+
+The preview above shows the local visualization experience. Each installation generates its own interactive map from the selected folder; the map is available only on that computer unless the user chooses to share the exported files.
+
+The map is generated into the selected user's local `graphify-out` folder and contains that user's graph data. It is not uploaded or shared by Graphify. The optional OpenAI API key is used only during semantic extraction of documents, PDFs, or images; code-only analysis remains local.
 
 ```bash
 # From local path
@@ -116,11 +127,13 @@ Works with file types:
 
 Every edge is tagged `EXTRACTED`, `INFERRED`, or `AMBIGUOUS` - you always know what was found vs guessed.
 
+The interactive map is a local artifact for the person who ran the install. It is not a shared company dashboard or hosted service.
+
 **See [USER_GUIDE.md](USER_GUIDE.md) for detailed documentation.**
 
 ## Tech stack
 
-NetworkX + Leiden (graspologic) + tree-sitter + OpenAI (GPT-4o) + vis.js. No Neo4j required, no server, runs entirely locally.
+NetworkX + Leiden (graspologic) + tree-sitter + OpenAI (GPT-4o) + a dependency-free SVG viewer. No Neo4j required, no server, and the generated visualization does not contact a CDN.
 
 ## Architecture
 
