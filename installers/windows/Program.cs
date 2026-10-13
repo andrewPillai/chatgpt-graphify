@@ -19,7 +19,7 @@ internal static class Program
 internal sealed class InstallerForm : Form
 {
     private const string PythonInstallerUrl = "https://www.python.org/ftp/python/3.12.7/python-3.12.7-amd64.exe";
-    private const string SourceZipUrl = "https://github.com/andrewPillai/chatgpt-graphify/archive/refs/heads/main.zip";
+    private const string SourceZipUrl = "https://github.com/andrewPillai/chatgpt-graphify/archive/refs/heads/updates.zip";
 
     private readonly TextBox log = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical };
     private readonly Button installButton = new() { Text = "Install ChatGPT Graphify", AutoSize = true };
