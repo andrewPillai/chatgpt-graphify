@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - updates
+      - feature/local-data-diagram
     tags:
       - "v*"
 

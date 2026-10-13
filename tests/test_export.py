@@ -88,14 +88,15 @@ def test_to_html_creates_file():
         to_html(G, communities, str(out))
         assert out.exists()
 
-def test_to_html_contains_visjs():
+def test_to_html_is_dependency_free():
     G = make_graph()
     communities = cluster(G)
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "graph.html"
         to_html(G, communities, str(out))
         content = out.read_text()
-        assert "vis-network" in content
+        assert 'id="graph-svg"' in content
+        assert "https://unpkg.com" not in content
 
 def test_to_html_contains_search():
     G = make_graph()
@@ -125,3 +126,13 @@ def test_to_html_contains_nodes_and_edges():
         content = out.read_text()
         assert "RAW_NODES" in content
         assert "RAW_EDGES" in content
+
+def test_to_html_identifies_local_data_map():
+    G = make_graph()
+    communities = cluster(G)
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "graph.html"
+        to_html(G, communities, str(out))
+        content = out.read_text()
+        assert "Local-only view" in content
+        assert "reads the graph generated on this computer" in content

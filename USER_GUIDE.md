@@ -44,6 +44,7 @@ chatgpt-graphify ./my-project --api-key sk-... --no-viz
 |--------|-------------|
 | `graphify-out/graph.json` | Persistent knowledge graph (load in any tool) |
 | `graphify-out/GRAPH_REPORT.md` | Human-readable audit report |
+| `graphify-out/graph.html` | Interactive local data map |
 | `graphify-out/obsidian/` | Open as Obsidian vault for browsing |
 | `graphify-out/graph.svg` | Visual graph (with `--svg`) |
 | `graphify-out/graph.graphml` | For Gephi/yEd (with `--graphml`) |
@@ -155,6 +156,17 @@ chatgpt-graphify ./my-project --mcp
 ---
 
 ## 📊 Understanding the Output
+
+### Interactive local data map
+
+Run the normal pipeline without `--no-viz`, then either:
+
+1. In the desktop app, click **Open data map** after analysis completes.
+2. Open `graphify-out/graph.html` inside the folder you analyzed.
+
+The map shows the user's own extracted nodes and edges. Click a node to see its source file, type, community, and neighbors. Use search to find a concept and the community legend to focus the view.
+
+This is a local file created inside that user's installation output folder. Graphify does not publish it or send it to other users. The viewer is rendered with built-in browser SVG and JavaScript only; it does not load a CDN, remote script, font, stylesheet, or graph service.
 
 ### GRAPH_REPORT.md Sections
 

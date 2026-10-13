@@ -26,13 +26,19 @@ def _html_styles() -> str:
     return """<style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #0f0f1a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; height: 100vh; overflow: hidden; }
-  #graph { flex: 1; }
+  #graph { flex: 1; min-width: 0; position: relative; }
+  #graph-svg { width: 100%; height: 100%; background: #0f0f1a; touch-action: none; }
+  .graph-edge { stroke: #7a7a98; stroke-width: 1.5; opacity: 0.7; }
+  .graph-node { cursor: pointer; }
+  .graph-node circle { stroke: #0f0f1a; stroke-width: 2; }
+  .graph-node.selected circle { stroke: #ffffff; stroke-width: 3; }
+  .graph-label { fill: #e0e0e0; font-size: 12px; pointer-events: none; }
   #sidebar { width: 280px; background: #1a1a2e; border-left: 1px solid #2a2a4e; display: flex; flex-direction: column; overflow: hidden; }
   #search-wrap { padding: 12px; border-bottom: 1px solid #2a2a4e; }
   #search { width: 100%; background: #0f0f1a; border: 1px solid #3a3a5e; color: #e0e0e0; padding: 7px 10px; border-radius: 6px; font-size: 13px; outline: none; }
   #search:focus { border-color: #4E79A7; }
   #search-results { max-height: 140px; overflow-y: auto; padding: 4px 12px; border-bottom: 1px solid #2a2a4e; display: none; }
-  .search-item { padding: 4px 6px; cursor: pointer; border-radius: 4px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .search-item { display: block; width: 100%; border: 0; text-align: left; background: transparent; color: #e0e0e0; padding: 4px 6px; cursor: pointer; border-radius: 4px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .search-item:hover { background: #2a2a4e; }
   #info-panel { padding: 14px; border-bottom: 1px solid #2a2a4e; min-height: 140px; }
   #info-panel h3 { font-size: 13px; color: #aaa; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -45,13 +51,14 @@ def _html_styles() -> str:
   #neighbors-list { max-height: 160px; overflow-y: auto; margin-top: 4px; }
   #legend-wrap { flex: 1; overflow-y: auto; padding: 12px; }
   #legend-wrap h3 { font-size: 13px; color: #aaa; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
-  .legend-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; border-radius: 4px; font-size: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; text-align: left; background: transparent; color: #e0e0e0; padding: 4px 0; cursor: pointer; border-radius: 4px; font-size: 12px; }
   .legend-item:hover { background: #2a2a4e; padding-left: 4px; }
   .legend-item.dimmed { opacity: 0.35; }
   .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
   .legend-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .legend-count { color: #666; font-size: 11px; }
   #stats { padding: 10px 14px; border-top: 1px solid #2a2a4e; font-size: 11px; color: #555; }
+  #local-note { padding: 8px 14px; border-top: 1px solid #2a2a4e; font-size: 11px; color: #777; }
 </style>"""
 
 
@@ -247,6 +254,159 @@ LEGEND.forEach(c => {{
 </script>"""
 
 
+def _local_html_script(nodes_json: str, edges_json: str, legend_json: str) -> str:
+    """Return a dependency-free SVG graph viewer.
+
+    The generated page intentionally uses only browser APIs. It does not load
+    JavaScript, fonts, stylesheets, or data from a CDN or remote service.
+    """
+    return f"""<script>
+const RAW_NODES = {nodes_json};
+const RAW_EDGES = {edges_json};
+const LEGEND = {legend_json};
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('graph-svg');
+const viewport = document.createElementNS(SVG_NS, 'g');
+const edgeLayer = document.createElementNS(SVG_NS, 'g');
+const nodeLayer = document.createElementNS(SVG_NS, 'g');
+viewport.append(edgeLayer, nodeLayer);
+svg.appendChild(viewport);
+const positions = new Map();
+const hiddenCommunities = new Set();
+let selectedNode = null;
+let zoom = 1;
+let offsetX = 0;
+let offsetY = 0;
+
+function el(name, attrs = {{}}) {{
+  const node = document.createElementNS(SVG_NS, name);
+  Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, value));
+  return node;
+}}
+
+function layout() {{
+  positions.clear();
+  const groups = new Map();
+  RAW_NODES.forEach(n => {{
+    if (!groups.has(n.community)) groups.set(n.community, []);
+    groups.get(n.community).push(n);
+  }});
+  const groupList = [...groups.values()];
+  const centerX = 600, centerY = 400;
+  const communityRadius = Math.min(270, 130 + groupList.length * 18);
+  groupList.forEach((group, groupIndex) => {{
+    const communityAngle = (Math.PI * 2 * groupIndex / Math.max(1, groupList.length)) - Math.PI / 2;
+    const cx = centerX + (groupList.length === 1 ? 0 : communityRadius * Math.cos(communityAngle));
+    const cy = centerY + (groupList.length === 1 ? 0 : communityRadius * Math.sin(communityAngle));
+    const nodeRadius = Math.max(55, Math.min(190, group.length * 14));
+    group.forEach((n, index) => {{
+      const angle = (Math.PI * 2 * index / Math.max(1, group.length)) - Math.PI / 2;
+      positions.set(n.id, {{x: cx + nodeRadius * Math.cos(angle), y: cy + nodeRadius * Math.sin(angle)}});
+    }});
+  }});
+}}
+
+function applyTransform() {{
+  viewport.setAttribute('transform', `translate(${{offsetX}} ${{offsetY}}) scale(${{zoom}})`);
+}}
+
+function showInfo(nodeId) {{
+  const n = RAW_NODES.find(item => item.id === nodeId);
+  if (!n) return;
+  selectedNode = nodeId;
+  const neighbors = RAW_EDGES.filter(e => e.from === nodeId || e.to === nodeId)
+    .map(e => e.from === nodeId ? e.to : e.from);
+  const info = document.getElementById('info-content');
+  info.replaceChildren();
+  const fields = [
+    [n.label, ''],
+    ['Type', n._file_type || 'unknown'],
+    ['Community', n.community_name || `Community ${{n.community}}`],
+    ['Source', n._source_file || '-'],
+    ['Degree', String(n._degree ?? neighbors.length)],
+    ['Neighbors', neighbors.length ? neighbors.map(id => RAW_NODES.find(item => item.id === id)?.label || id).join(', ') : 'none'],
+  ];
+  fields.forEach(([label, value], index) => {{
+    const row = document.createElement('div');
+    row.className = 'field';
+    if (index === 0) {{ row.textContent = label; row.style.fontWeight = 'bold'; }}
+    else {{ row.textContent = `${{label}}: ${{value}}`; }}
+    info.appendChild(row);
+  }});
+  draw();
+}}
+
+function draw() {{
+  edgeLayer.replaceChildren();
+  nodeLayer.replaceChildren();
+  RAW_EDGES.forEach(edge => {{
+    const a = positions.get(edge.from), b = positions.get(edge.to);
+    if (!a || !b) return;
+    const source = RAW_NODES.find(n => n.id === edge.from);
+    const target = RAW_NODES.find(n => n.id === edge.to);
+    if (!source || !target || hiddenCommunities.has(source.community) || hiddenCommunities.has(target.community)) return;
+    const line = el('line', {{x1:a.x, y1:a.y, x2:b.x, y2:b.y, class:'graph-edge', 'stroke-dasharray': edge.dashes ? '6 5' : 'none'}});
+    line.setAttribute('data-tooltip', `${{edge.title || edge.label || 'relationship'}}`);
+    edgeLayer.appendChild(line);
+  }});
+  RAW_NODES.forEach(n => {{
+    if (hiddenCommunities.has(n.community)) return;
+    const p = positions.get(n.id);
+    const group = el('g', {{class: `graph-node${{selectedNode === n.id ? ' selected' : ''}}`, transform: `translate(${{p.x}} ${{p.y}})`}});
+    const circle = el('circle', {{r: String(Math.max(7, Math.min(22, 7 + n.size / 3))), fill: n.color.background}});
+    circle.setAttribute('aria-label', `${{n.label}} from ${{n._source_file || 'unknown source'}}`);
+    circle.addEventListener('click', () => showInfo(n.id));
+    group.appendChild(circle);
+    if (n.font?.size) {{
+      const label = el('text', {{class:'graph-label', y:'-14', 'text-anchor':'middle'}});
+      label.textContent = n.label;
+      group.appendChild(label);
+    }}
+    nodeLayer.appendChild(group);
+  }});
+  applyTransform();
+}}
+
+function buildSearch() {{
+  const input = document.getElementById('search');
+  const results = document.getElementById('search-results');
+  input.addEventListener('input', () => {{
+    const query = input.value.toLowerCase().trim();
+    results.replaceChildren();
+    results.style.display = query ? 'block' : 'none';
+    RAW_NODES.filter(n => n.label.toLowerCase().includes(query)).slice(0, 20).forEach(n => {{
+      const item = document.createElement('button');
+      item.type = 'button'; item.className = 'search-item'; item.textContent = n.label;
+      item.addEventListener('click', () => {{ showInfo(n.id); input.value = ''; results.style.display = 'none'; }});
+      results.appendChild(item);
+    }});
+  }});
+}}
+
+function buildLegend() {{
+  const legend = document.getElementById('legend');
+  LEGEND.forEach(c => {{
+    const item = document.createElement('button');
+    item.type = 'button'; item.className = 'legend-item';
+    item.innerHTML = `<span class="legend-dot" style="background:${{c.color}}"></span><span class="legend-label">${{c.label}}</span><span class="legend-count">${{c.count}}</span>`;
+    item.addEventListener('click', () => {{
+      if (hiddenCommunities.has(c.cid)) {{ hiddenCommunities.delete(c.cid); item.classList.remove('dimmed'); }}
+      else {{ hiddenCommunities.add(c.cid); item.classList.add('dimmed'); }}
+      draw();
+    }});
+    legend.appendChild(item);
+  }});
+}}
+
+svg.addEventListener('wheel', event => {{
+  event.preventDefault();
+  zoom = Math.max(0.35, Math.min(3, zoom * (event.deltaY < 0 ? 1.1 : 0.9)));
+  applyTransform();
+}}, {{passive:false}});
+layout(); buildSearch(); buildLegend(); draw();
+</script>"""
+
+
 _CONFIDENCE_SCORE_DEFAULTS = {"EXTRACTED": 1.0, "INFERRED": 0.5, "AMBIGUOUS": 0.2}
 
 
@@ -375,11 +535,10 @@ def to_html(
 <head>
 <meta charset="UTF-8">
 <title>graphify - {title}</title>
-<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 {_html_styles()}
 </head>
 <body>
-<div id="graph"></div>
+<div id="graph"><svg id="graph-svg" viewBox="0 0 1200 800" role="img" aria-label="Local knowledge graph diagram"></svg></div>
 <div id="sidebar">
   <div id="search-wrap">
     <input id="search" type="text" placeholder="Search nodes..." autocomplete="off">
@@ -394,9 +553,9 @@ def to_html(
     <div id="legend"></div>
   </div>
   <div id="stats">{stats}</div>
+  <div id="local-note">Local-only view · reads the graph generated on this computer</div>
 </div>
-{_html_script(nodes_json, edges_json, legend_json)}
-{_hyperedge_script(hyperedges_json)}
+{_local_html_script(nodes_json, edges_json, legend_json)}
 </body>
 </html>"""
 
